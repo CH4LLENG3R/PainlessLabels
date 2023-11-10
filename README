@@ -1,0 +1,20 @@
+RUN PROJECT:
+    1. Navigate to PainlessLabels/dist
+    2. Run main.exe
+
+SETUP PROJECT FOR DEVELOPNEMT:
+
+    1. Make sure your pip has pipreqs package
+        command: pip install pipreqs
+
+    2. Using pipreqs download all essential packages
+        command: pipreqs .
+
+        "pipreqs ." having that requirements.txt is in the directory pip is recently in,
+        if not use "pipreqs <path to requirements.txt>"
+
+    3. Compile project (optional)
+        a. install pyinstaller
+            command: pip install pyinstaller
+        b. compile with pyinstaller
+            command: pyinstaller main.py --onefile --paths=.
