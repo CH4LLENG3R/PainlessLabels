@@ -4,6 +4,9 @@ from view.UserMediator import UserMediator
 from controller.Enumerators import Action, Status
 import os
 import pandas as pd
+from configparser import ConfigParser
+from view.ButtonDescription import ButtonDescription
+import json
 
 
 class SelectorController:
@@ -22,7 +25,7 @@ class SelectorController:
 
         # Save progress
         self.__df.loc[data.get_filename()] = [data.get_status().name, data.get_reason(), data.get_annotation()]
-        pd.to_pickle(self.__df, 'output/UCK_output.pkl')
+        pd.to_pickle(self.__df, self.__output_path)
         print(self.__df)
 
         # Read new
@@ -43,16 +46,45 @@ class SelectorController:
 
         return data
 
-    def __init__(self, im_reader: ImageReaderInterface):
-        self.__view = SelectorView()
+    def __init_selector(self, im_reader):
+        # read setup
+        config = ConfigParser()
+        config.read('sources/config/config.ini')
 
-        self.__im_reader = im_reader
+        ann_buttons_config = config['annotation_buttons']
+        rsn_buttons_config = config['reason_buttons']
+        paths = config['paths']
+
+        # parameters
+        self.__output_path = paths['output_path']
+
+        ann_buttons = []
+        for entry in ann_buttons_config:
+            d = json.loads(ann_buttons_config[entry])
+            if 'group_id' in d.keys():
+                ann_buttons.append(ButtonDescription(d['name'], d['value'], d['shortcut'], d['group_id']))
+            else:
+                ann_buttons.append(ButtonDescription(d['name'], d['value'], d['shortcut'], ''))
+
+        rsn_buttons = []
+        for entry in rsn_buttons_config:
+            d = json.loads(rsn_buttons_config[entry])
+            rsn_buttons.append(ButtonDescription(d['name'], d['value'], d['shortcut'], ''))
+
+        # initialize view
+        self.__view = SelectorView(rsn_buttons, ann_buttons)
+
+        # initialize file handling
+        if not os.path.exists(os.path.dirname(self.__output_path)):
+            os.makedirs(os.path.dirname(self.__output_path))
+
+        self.__im_reader = im_reader(paths['dataset_path'])
         self.__df = pd.DataFrame(columns=['Filename', 'Status', 'Reason', 'Annotation']).set_index(['Filename'])
 
         self.__im_reader.load_next()
         data = UserMediator(filename=self.__im_reader.get_current_filename())
-        if os.path.isfile('output/UCK_output.pkl'):
-            self.__df = pd.read_pickle('output/UCK_output.pkl')
+        if os.path.isfile(self.__output_path):
+            self.__df = pd.read_pickle(self.__output_path)
             last_row = self.__df.iloc[-1:]
             data = UserMediator(filename=last_row.index[0], status=Status[last_row['Status'][0]],
                                 reason=last_row['Reason'][0],
@@ -67,4 +99,8 @@ class SelectorController:
                 break
             data = self.__perform_action(data)
 
-        pd.to_pickle(self.__df, 'output/UCK_output.pkl')
+        pd.to_pickle(self.__df, self.__output_path)
+
+    def __init__(self, im_reader):
+        self.__init_selector(im_reader)
+
