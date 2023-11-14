@@ -13,6 +13,3 @@ class ImageReaderInterface:
 
     def load_specific(self, name):
         raise NotImplementedError('Not implemented.')
-
-    def get_length(self) -> int:
-        raise NotImplementedError('Not implemented.')

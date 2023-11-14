@@ -18,13 +18,14 @@ def generate_annotation_buttons(buttons: List[ButtonDescription]) -> List[List[s
 
 
 class SelectorView:
-    def __init__(self, reason_buttons: List[ButtonDescription], annotation_buttons: List[ButtonDescription]):
+    def __init__(self, reason_buttons: List[ButtonDescription], annotation_buttons: List[ButtonDescription], project_folder):
         sg.theme('DarkBlack1')
+        self.__project_folder = project_folder
         self.__annotation_buttons = annotation_buttons
         self.__reason_buttons = reason_buttons
 
         image_column = [[sg.Text("1_1", size=(180, 1), key="-FILENAME-", justification='c')],
-                        [sg.Image("sources/cache.png", key="-IMAGE-")]]
+                        [sg.Image(f"sources/{project_folder}/cache.png", key="-IMAGE-")]]
 
         reason_column = [[sg.Text("Progress")],
                          [sg.Text("(0/0)", key="-PROGRESS-")],
@@ -58,7 +59,7 @@ class SelectorView:
         # Update elements
         self.__window['-PROGRESS-'].update(data.get_progress())
         self.__window['-FILENAME-'].update(data.get_filename())
-        self.__window['-IMAGE-'].update('sources/cache.png')
+        self.__window['-IMAGE-'].update(f'sources/{self.__project_folder}/cache.png')
         if data.get_status() == Status.NOT_REVIEWED:
             self.__window['-STATUS-'].update('NOT REVIEWED',  background_color='gray')
         elif data.get_status() == Status.TO_KEEP:
@@ -71,7 +72,6 @@ class SelectorView:
         # Read input
         while True:
             event, values = self.__window.read()
-            print(event, values)
             if event == sg.WINDOW_CLOSED:
                 self.__window.close()
                 return data, False

@@ -10,7 +10,7 @@ import json
 
 
 class SelectorController:
-    def __perform_action(self, data: UserMediator) -> UserMediator:
+    def __perform_action(self, data: UserMediator) -> (UserMediator, bool):
         # Before Save
         if data.get_action() == Action.KEEP:
             data.set_status(Status.TO_KEEP)
@@ -25,8 +25,7 @@ class SelectorController:
 
         # Save progress
         self.__df.loc[data.get_filename()] = [data.get_status().name, data.get_reason(), data.get_annotation()]
-        pd.to_pickle(self.__df, self.__output_path)
-        print(self.__df)
+        self.__df.to_csv(self.__output_path)
 
         # Read new
         if data.get_action() in [Action.KEEP, Action.REMOVE, Action.NEXT]:
@@ -42,18 +41,24 @@ class SelectorController:
                                 annotation=row['Annotation'][0])
 
         done_count = self.__df[self.__df.Status == 'TO_KEEP'].shape[0] + self.__df[self.__df.Status == 'TO_REMOVE'].shape[0]
-        data.set_progress('({}/{})'.format(done_count, self.__im_reader.get_length()))
+        data.set_progress('({}/{})'.format(done_count, self.__im_reader.get_dataset_length()))
 
-        return data
+        if done_count == self.__im_reader.get_dataset_length():
+            return data, False
+        else:
+            return data, True
 
-    def __init_selector(self, im_reader):
+    def __init__(self, im_reader, project_folder):
         # read setup
         config = ConfigParser()
-        config.read('sources/config/config.ini')
+        config.read(f'sources/{project_folder}/config/config.ini')
 
         ann_buttons_config = config['annotation_buttons']
         rsn_buttons_config = config['reason_buttons']
         paths = config['paths']
+
+        self.__im_reader = im_reader(paths['dataset_path'], f'sources/{project_folder}/')
+        self.__im_reader.load_next()
 
         # parameters
         self.__output_path = paths['output_path']
@@ -72,35 +77,30 @@ class SelectorController:
             rsn_buttons.append(ButtonDescription(d['name'], d['value'], d['shortcut'], ''))
 
         # initialize view
-        self.__view = SelectorView(rsn_buttons, ann_buttons)
+        self.__view = SelectorView(rsn_buttons, ann_buttons, project_folder)
 
         # initialize file handling
         if not os.path.exists(os.path.dirname(self.__output_path)):
             os.makedirs(os.path.dirname(self.__output_path))
 
-        self.__im_reader = im_reader(paths['dataset_path'])
         self.__df = pd.DataFrame(columns=['Filename', 'Status', 'Reason', 'Annotation']).set_index(['Filename'])
 
-        self.__im_reader.load_next()
         data = UserMediator(filename=self.__im_reader.get_current_filename())
         if os.path.isfile(self.__output_path):
-            self.__df = pd.read_pickle(self.__output_path)
-            last_row = self.__df.iloc[-1:]
-            data = UserMediator(filename=last_row.index[0], status=Status[last_row['Status'][0]],
-                                reason=last_row['Reason'][0],
-                                annotation=last_row['Annotation'][0])
-            self.__im_reader.load_specific(data.get_filename())
+            self.__df = pd.read_csv(self.__output_path).set_index(['Filename'])
+            if len(self.__df.index) > 0:
+                last_row = self.__df.tail(1)
+                data = UserMediator(filename=last_row.index[0], status=Status[last_row['Status'][0]],
+                                    reason=last_row['Reason'][0],
+                                    annotation=last_row['Annotation'][0])
+                self.__im_reader.load_specific(data.get_filename())
 
-        print(self.__df)
         loop = True
         while loop:
             data, loop = self.__view.get_user_input(data)
             if not loop:
                 break
-            data = self.__perform_action(data)
+            data, loop = self.__perform_action(data)
 
-        pd.to_pickle(self.__df, self.__output_path)
-
-    def __init__(self, im_reader):
-        self.__init_selector(im_reader)
+        self.__df.to_csv(self.__output_path)
 
