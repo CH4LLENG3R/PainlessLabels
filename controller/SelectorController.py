@@ -44,11 +44,16 @@ class SelectorController:
         data.set_progress('({}/{})'.format(done_count, self.__im_reader.get_dataset_length()))
 
         if done_count == self.__im_reader.get_dataset_length():
-            return data, False
+            if not self.__completed:
+                self.__continue_after_completed = self.__view.show_completed_message()
+            self.__completed = True
+            return data, not self.__continue_after_completed
         else:
             return data, True
 
     def __init__(self, im_reader, project_folder):
+        self.__completed = False
+        self.__continue_after_completed = False
         # read setup
         config = ConfigParser()
         config.read(f'sources/{project_folder}/config/config.ini')
@@ -87,13 +92,16 @@ class SelectorController:
 
         data = UserMediator(filename=self.__im_reader.get_current_filename())
         if os.path.isfile(self.__output_path):
-            self.__df = pd.read_csv(self.__output_path).set_index(['Filename'])
+            self.__df = pd.read_csv(self.__output_path).set_index(['Filename']).fillna('')
             if len(self.__df.index) > 0:
                 last_row = self.__df.tail(1)
                 data = UserMediator(filename=last_row.index[0], status=Status[last_row['Status'][0]],
                                     reason=last_row['Reason'][0],
                                     annotation=last_row['Annotation'][0])
                 self.__im_reader.load_specific(data.get_filename())
+                done_count = self.__df[self.__df.Status == 'TO_KEEP'].shape[0] + \
+                             self.__df[self.__df.Status == 'TO_REMOVE'].shape[0]
+                data.set_progress('({}/{})'.format(done_count, self.__im_reader.get_dataset_length()))
 
         loop = True
         while loop:
@@ -101,6 +109,7 @@ class SelectorController:
             if not loop:
                 break
             data, loop = self.__perform_action(data)
-
         self.__df.to_csv(self.__output_path)
 
+    def is_completed(self) -> bool:
+        return self.__completed

@@ -17,11 +17,13 @@ print('Dont worry, I will ask you a few questions and an interface made by Pablo
 
 
 def choose_from_existing() -> str:
-    local_projects = os.listdir('sources')
-    if len(local_projects) == 0:
-        print('no local projects yet')
-        input('Press Enter to continue...')
+    if not (os.path.exists('sources') and len(os.listdir('sources')) > 0):
+        print('no local projects yet.')
+        input('Press Enter to continue...\n')
         return ''
+
+    local_projects = os.listdir('sources')
+
     for i in range(0, len(local_projects)):
         print(f'{i+1}: {local_projects[i]}')
     while True:
@@ -49,7 +51,8 @@ def __main__():
             break
 
     controller = SelectorController(ImageReader, project)
-    pm.upload_result(project)
+    if controller.is_completed():
+        pm.upload_result(project)
 
 __main__()
 

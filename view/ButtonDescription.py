@@ -8,7 +8,7 @@ class ButtonDescription:
     def get_name(self):
         return self.__name
 
-    def get_value(self):
+    def get_value(self) -> str:
         return self.__value
 
     def get_shortcut(self):
