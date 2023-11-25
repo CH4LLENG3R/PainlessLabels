@@ -2,6 +2,7 @@ from controller.SelectorController import SelectorController
 from model.ImageReader import ImageReader
 from ProjectManager import ProjectManager
 import os
+import shutil
 
 print('Welcome to \n')
 print('''$$$$$$$\         $$\         $$\                           $$\              $$\               $$\          
@@ -53,6 +54,7 @@ def __main__():
     controller = SelectorController(ImageReader, project)
     if controller.is_completed():
         pm.upload_result(project)
+        shutil.rmtree("sources")
 
 __main__()
 

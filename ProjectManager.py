@@ -252,7 +252,7 @@ class ProjectManager:
             ProjectManager.__write_bytesio_to_file(self.__data_path + '/' + item['name'], file)
 
     def upload_result(self, project: str):
-        print('Uploading results. DON\'t YOU DARE TO EXIT!')
+        print('Uploading results. DON\'t YOU DARE EXIT!')
         f = open(f'sources/{project}/config/driveConfig.cnf', 'r')
         subset_name = f.readline()
         f.close()
