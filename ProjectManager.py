@@ -171,7 +171,7 @@ class ProjectManager:
             if page_token is None:
                 break
 
-        res = [i for i in res if i['name'].startswith('subset_')]
+        res = sorted([i for i in res if i['name'].startswith('subset_')], key=lambda d: d['name'])
         return res
 
     def __choose_subset(self, res: List[Dict[str, str]]) -> Dict[str, str]:
@@ -210,7 +210,9 @@ class ProjectManager:
         for item in items:
             if item['name'] == 'config.ini':
                 break
-
+        if item is None:
+            print("No config.ini file found")
+            input('Press Enter to continue...')
         # download
         request = self.__service.files().get_media(fileId=item['id'])
         file = io.BytesIO()

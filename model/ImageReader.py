@@ -7,7 +7,12 @@ class ImageReader(ImageReaderInterface):
     def __load(self):
         im1 = Image.open(self.__path+self.__files[self.__i])
         shape = im1.size
-        scale = 2
+        max_size = 800
+        scale = 1
+        if shape[0] > shape[1]:
+            scale = 1100/shape[0]
+        else:
+            scale = 1100/shape[1]
         im1.resize((int(shape[0]*scale), int(shape[1]*scale))).save(f'{self.__cache_path}cache.png')
 
     def load_next(self):

@@ -28,7 +28,7 @@ def choose_from_existing() -> str:
     for i in range(0, len(local_projects)):
         print(f'{i+1}: {local_projects[i]}')
     while True:
-        choice = int(input('choose: '))
+        choice = int(input('choice: '))
         if 1 <= choice <= len(local_projects) + 1:
             return local_projects[choice - 1]
         print('incorrect choice.')
@@ -40,7 +40,7 @@ def __main__():
     while True:
         print('1. Continue labeling')
         print('2. Download new dataset')
-        choice = int(input("choose: "))
+        choice = int(input("choice: "))
 
         if choice == 1:
             project = choose_from_existing()
