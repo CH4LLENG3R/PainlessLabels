@@ -25,6 +25,7 @@ def generate_custom_shortcut_info(buttons: List[ButtonDescription]) -> List[sg.T
 class SelectorView:
     def __init__(self, reason_buttons: List[ButtonDescription], annotation_buttons: List[ButtonDescription], project_folder):
         sg.theme('DarkBlack1')
+        self.__backward_count = 0
         self.__project_folder = project_folder
         self.__annotation_buttons = annotation_buttons
         self.__reason_buttons = reason_buttons
@@ -50,8 +51,8 @@ class SelectorView:
                          [sg.Multiline(size=(58, 3), key='-ANNOTATION-', no_scrollbar=True)],
                          [sg.Button("remove", key="-REMOVE-", size=(24, 3), button_color='red'),
                           sg.Button("keep", key="-KEEP-", size=(24, 3), button_color='green')],
-                         [sg.Button("<- previous", key="-PREVIOUS-", size=(11, 1)),
-                          sg.Button("next ->", key="-NEXT-", size=(11, 1))]]
+                         [sg.Button("<- previous", key="-PREVIOUS-", size=(11, 1), disabled=True),
+                          sg.Button("next ->", key="-NEXT-", size=(11, 1), disabled=True)]]
 
         # Define the window's contents
         self.__layout = [[sg.Column(image_column, element_justification='c', expand_x=True),  # Part 2 - The Layout
@@ -80,6 +81,9 @@ class SelectorView:
             self.__window['-STATUS-'].update('REMOVE',  background_color='red')
         self.__window['-ANNOTATION-'].update(data.get_annotation())
         self.__window['-REASON-'].update(data.get_reason())
+
+        self.__window['-NEXT-'].update(disabled=self.__backward_count == 0)
+        self.__window['-PREVIOUS-'].update(disabled=data.get_position() == 0)
 
         #update reason buttons
         for i in range(0, len(self.__reason_buttons)):
@@ -172,11 +176,13 @@ class SelectorView:
                 self.__window['-REASON-'].update('')
                 data.set_reason('')
                 break
-            if event in ["-PREVIOUS-", "Left:37"]:
+            if event in ["-PREVIOUS-", "Left:37"] and data.get_position() > 0:
                 data.set_action(Action.PREVIOUS)
+                self.__backward_count += 1
                 break
-            if event in ["-NEXT-", "Right:39"]:
+            if event in ["-NEXT-", "Right:39"] and self.__backward_count > 0:
                 data.set_action(Action.NEXT)
+                self.__backward_count -= 1
                 break
 
         data.set_annotation(values['-ANNOTATION-'])

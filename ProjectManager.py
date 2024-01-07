@@ -6,11 +6,13 @@ import io
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.http import MediaFileUpload
+from PIL import Image
 from tqdm import tqdm
 from typing import List, Dict
 
@@ -30,6 +32,13 @@ class ProjectManager:
             outfile.write(bytesio.getbuffer())
 
     @staticmethod
+    def get_creds():
+        flow = InstalledAppFlow.from_client_secrets_file(
+            'cred.json', SCOPES)
+        creds = flow.run_local_server(port=0)
+        return creds
+
+    @staticmethod
     def update_creds() -> Credentials:
         creds = None
         # The file token.json stores the user's access and refresh tokens, and is
@@ -37,14 +46,17 @@ class ProjectManager:
         # time.
         if os.path.exists('token.json'):
             creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
+                try:
+                    creds.refresh(Request())
+                except RefreshError as e:
+                    os.remove('token.json')
+                    creds = ProjectManager.get_creds()
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    'cred.json', SCOPES)
-                creds = flow.run_local_server(port=0)
+                creds = ProjectManager.get_creds()
             # Save the credentials for the next run
             with open('token.json', 'w') as token:
                 token.write(creds.to_json())
@@ -222,6 +234,24 @@ class ProjectManager:
             status, done = downloader.next_chunk()
         ProjectManager.__write_bytesio_to_file(self.__config_path + '/config.ini', file)
 
+    def __download_item(self, item):
+        request = self.__service.files().get_media(fileId=item['id'])
+        file = io.BytesIO()
+        downloader = MediaIoBaseDownload(file, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+        ProjectManager.__write_bytesio_to_file(self.__data_path + '/' + item['name'], file)
+
+    @staticmethod
+    def __validate_img(path: str) -> bool:
+        try:
+            img = Image.open(path)  # open the image file
+            img.verify()  # verify that it is, in fact an image
+        except (IOError, SyntaxError) as e:
+            return False
+        return True
+
     def __download_data(self, subset: Dict[str, str]):
         items = []
         page_token = None
@@ -244,14 +274,12 @@ class ProjectManager:
 
         print('downloading...')
         for item in tqdm(items):
-            # download
-            request = self.__service.files().get_media(fileId=item['id'])
-            file = io.BytesIO()
-            downloader = MediaIoBaseDownload(file, request)
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
-            ProjectManager.__write_bytesio_to_file(self.__data_path + '/' + item['name'], file)
+            # retry downloading if image is broken
+            for i in range(0, 2):
+                self.__download_item(item)
+                if ProjectManager.__validate_img(self.__data_path + '/' + item['name']):
+                    break
+                print(f'File {item["name"]} was corrupted.')
 
     def upload_result(self, project: str):
         print('Uploading results. DON\'t YOU DARE EXIT!')

@@ -1,11 +1,17 @@
+import PIL
+
 from model.ImageReaderInterface import ImageReaderInterface
 import os
 from PIL import Image
 
 
 class ImageReader(ImageReaderInterface):
-    def __load(self):
-        im1 = Image.open(self.__path+self.__files[self.__i])
+    def __load(self) -> bool:
+        try:
+            im1 = Image.open(self.__path+self.__files[self.__i])
+        except PIL.UnidentifiedImageError as e:
+            return False
+
         shape = im1.size
         max_size = 800
         scale = 1
@@ -14,16 +20,19 @@ class ImageReader(ImageReaderInterface):
         else:
             scale = 1100/shape[1]
         im1.resize((int(shape[0]*scale), int(shape[1]*scale))).save(f'{self.__cache_path}cache.png')
+        return True
 
-    def load_next(self):
+    def load_next(self) -> bool:
         if self.__i < self.__length - 1:
             self.__i += 1
-            self.__load()
+            return self.__load()
+        return True
 
-    def load_previous(self):
+    def load_previous(self) -> bool:
         if self.__i > 0:
             self.__i -= 1
-            self.__load()
+            return self.__load()
+        return True
 
     def get_dataset_length(self) -> int:
         return self.__length
@@ -38,6 +47,9 @@ class ImageReader(ImageReaderInterface):
     def load_specific(self, name):
         self.__i = self.__files.index(name)
         self.__load()
+
+    def get_position(self):
+        return self.__i
 
     def __init__(self, path: str, cache_path: str):
         if not os.path.isdir(path):

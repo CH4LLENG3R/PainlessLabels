@@ -2,13 +2,14 @@ from controller.Enumerators import Action, Status
 
 
 class UserMediator:
-    def __init__(self, action: Action = None, status: Status = None, filename: str = '', reason: str = '', annotation: str = ''):
+    def __init__(self, action: Action = None, status: Status = None, filename: str = '', reason: str = '', annotation: str = '', position: int = 0):
         self.__action = action
         self.__status = status
         self.__filename = filename
         self.__reason = reason
         self.__annotation = annotation
         self.__progress = ''
+        self.__position = position
 
     def set_action(self, action: Action):
         self.__action = action
@@ -48,6 +49,12 @@ class UserMediator:
 
     def get_progress(self) -> str:
         return self.__progress
+
+    def set_position(self, position: int):
+        self.__position = position
+
+    def get_position(self) -> int:
+        return self.__position
 
     def __str__(self):
         return 'action: {}, reason: {}, annotaion: {}'.format(self.__action.name, self.__reason, self.__annotation)

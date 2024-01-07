@@ -10,6 +10,11 @@ import json
 
 
 class SelectorController:
+
+    def __handle_corrupted_image(self):
+        self.__df.loc[self.__im_reader.get_current_filename()] = [Status.TO_REMOVE.name, 'Corrupted', 'Corrupted']
+        self.__df.to_csv(self.__output_path)
+
     def __perform_action(self, data: UserMediator) -> (UserMediator, bool):
         # Before Save
         if data.get_action() == Action.KEEP:
@@ -29,16 +34,18 @@ class SelectorController:
 
         # Read new
         if data.get_action() in [Action.KEEP, Action.REMOVE, Action.NEXT]:
-            self.__im_reader.load_next()
+            while not self.__im_reader.load_next():
+                self.__handle_corrupted_image()
         elif data.get_action() == Action.PREVIOUS:
-            self.__im_reader.load_previous()
+            while not self.__im_reader.load_previous():
+                self.__handle_corrupted_image()
 
         new_filename = self.__im_reader.get_current_filename()
-        data = UserMediator(filename=new_filename, status=Status.NOT_REVIEWED)
+        data = UserMediator(filename=new_filename, status=Status.NOT_REVIEWED, position=self.__im_reader.get_position())
         if new_filename in self.__df.index:
             row = self.__df.loc[self.__df.index == new_filename]
             data = UserMediator(filename=new_filename, status=Status[row['Status'][0]], reason=row['Reason'][0],
-                                annotation=row['Annotation'][0])
+                                annotation=row['Annotation'][0], position=self.__im_reader.get_position())
 
         done_count = self.__df[self.__df.Status == 'TO_KEEP'].shape[0] + self.__df[self.__df.Status == 'TO_REMOVE'].shape[0]
         data.set_progress('({}/{})'.format(done_count, self.__im_reader.get_dataset_length()))
@@ -102,6 +109,7 @@ class SelectorController:
                 done_count = self.__df[self.__df.Status == 'TO_KEEP'].shape[0] + \
                              self.__df[self.__df.Status == 'TO_REMOVE'].shape[0]
                 data.set_progress('({}/{})'.format(done_count, self.__im_reader.get_dataset_length()))
+                data.set_position(self.__im_reader.get_position())
 
         loop = True
         while loop:

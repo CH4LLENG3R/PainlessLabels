@@ -13,3 +13,6 @@ class ImageReaderInterface:
 
     def load_specific(self, name):
         raise NotImplementedError('Not implemented.')
+
+    def get_position(self) -> bool:
+        raise NotImplementedError('Not implemented.')
