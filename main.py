@@ -17,44 +17,31 @@ print('The dev was lazy and did not implement graphical user interface for this 
 print('Dont worry, I will ask you a few questions and an interface made by Pablo Picasso himself will show up ;)\n')
 
 
-def choose_from_existing() -> str:
-    if not (os.path.exists('sources') and len(os.listdir('sources')) > 0):
-        print('no local projects yet.')
-        input('Press Enter to continue...\n')
-        return ''
-
-    local_projects = os.listdir('sources')
-
-    for i in range(0, len(local_projects)):
-        print(f'{i+1}: {local_projects[i]}')
-    while True:
-        choice = int(input('choice: '))
-        if 1 <= choice <= len(local_projects) + 1:
-            return local_projects[choice - 1]
-        print('incorrect choice.')
-
-
 def __main__():
     pm = ProjectManager()
-    project = ''
     while True:
         print('1. Continue labeling')
         print('2. Download new dataset')
         choice = int(input("choice: "))
 
         if choice == 1:
-            project = choose_from_existing()
+            project = pm.choose_from_existing()
             if project != '':
                 break
         elif choice == 2:
-            pm.download_new()
+            try:
+                pm.download_new()
+            except ResourceWarning as e:
+                print(e)
+                continue
             project = pm.get_project_name()
             break
 
     controller = SelectorController(ImageReader, project)
+    pm.create_copy()
     if controller.is_completed():
         pm.upload_result(project)
         shutil.rmtree("sources")
 
-__main__()
 
+__main__()

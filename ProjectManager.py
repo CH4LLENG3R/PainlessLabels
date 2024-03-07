@@ -15,6 +15,8 @@ from googleapiclient.http import MediaFileUpload
 from PIL import Image
 from tqdm import tqdm
 from typing import List, Dict
+import shutil
+from configparser import ConfigParser
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
@@ -199,7 +201,6 @@ class ProjectManager:
         if 0 <= int(choice) <= len(res):
             return res[int(choice)]
 
-
     def __download_config(self):
         items = []
         page_token = None
@@ -269,8 +270,7 @@ class ProjectManager:
                 break
 
         if not items:
-            print('No files found.')
-            return
+            raise ResourceWarning(f'No files found in subset: {subset["name"]}')
 
         print('downloading...')
         for item in tqdm(items):
@@ -282,7 +282,7 @@ class ProjectManager:
                 print(f'File {item["name"]} was corrupted.')
 
     def upload_result(self, project: str):
-        print('Uploading results. DON\'t YOU DARE EXIT!')
+        print('Upload pending...')
         f = open(f'sources/{project}/config/driveConfig.cnf', 'r')
         subset_name = f.readline()
         f.close()
@@ -299,14 +299,14 @@ class ProjectManager:
               f" and mimeType='application/vnd.google-apps.folder'", fields="nextPageToken, files(id, name)").execute()
         output_subfolder_id = results.get('files', [])[0]['id']
 
-        file_metadata = {'name': subset_name+'.csv',
+        file_metadata = {'name': subset_name + '.csv',
                          "parents": [output_subfolder_id]
                          }
         media = MediaFileUpload(f'sources/{project}/output/output.csv',
                                 mimetype=None)
         file = self.__service.files().create(body=file_metadata,
-                                            media_body=media,
-                                            fields='id').execute()
+                                             media_body=media,
+                                             fields='id').execute()
         print('Done. You can close this window.')
 
     @staticmethod
@@ -329,18 +329,54 @@ class ProjectManager:
         projects = self.get_project_folders()
         self.__project = self.__choose_project(projects)
         self.__project_name = self.__project['name']
+        if os.path.exists(f'sources/{self.__project_name}'):
+            shutil.rmtree(f'sources/{self.__project_name}')
         subsets = self.__get_availible_subsets()
         self.__subset = self.__choose_subset(subsets)
+        self.__subset_name = self.__subset['name']
         self.__create_enviroment()
         self.__download_config()
         self.__download_data(self.__subset)
-        f = open(self.__config_path+'/driveConfig.cnf', 'w')
+        f = open(self.__config_path + '/driveConfig.cnf', 'w')
         f.write(self.__subset['name'])
         f.close()
 
     def __init__(self):
+        self.__subset = None
+        self.__project = None
+        self.__project_name = None
+        self.__subset_name = None
         creds = ProjectManager.update_creds()
         self.__service = build('drive', 'v3', credentials=creds)
 
+    def create_copy(self):
+        config = ConfigParser()
+        config.read(f'sources/{self.__project_name}/config/config.ini')
+        paths = config['paths']
+        output_path = paths['output_path']
+        if not os.path.isdir('saves'):
+            os.mkdir('saves')
+        shutil.copyfile(output_path, f'saves/{self.__project_name}_{self.__subset_name}_output.csv')
+
     def get_project_name(self):
         return self.__project_name
+
+    def choose_from_existing(self) -> str:
+        if not (os.path.exists('sources') and len(os.listdir('sources')) > 0):
+            print('no local projects yet.')
+            input('Press Enter to continue...\n')
+            return ''
+
+        local_projects = os.listdir('sources')
+
+        for i in range(0, len(local_projects)):
+            print(f'{i + 1}: {local_projects[i]}')
+        while True:
+            choice = int(input('choice: '))
+            if 1 <= choice <= len(local_projects) + 1:
+                self.__project_name = local_projects[choice - 1]
+                f = open(f'sources/{self.__project_name}/config/driveConfig.cnf', 'r')
+                self.__subset_name = f.readline().replace('\n', '')
+                f.close()
+                return self.__project_name
+            print('incorrect choice.')
